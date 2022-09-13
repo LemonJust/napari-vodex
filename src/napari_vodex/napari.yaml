@@ -1,0 +1,15 @@
+name: napari-vodex
+display_name: napari FooBar
+contributions:
+  commands:
+    - id: napari-vodex.new_experiment
+      python_name: napari_vodex._widget:new_experiment
+      title: Create new experiment
+    - id: napari-vodex.load_experiment
+      python_name: napari_vodex._widget:load_experiment
+      title: Load existing experiment
+  widgets:
+    - command: napari-vodex.new_experiment
+      display_name: new_experiment
+    - command: napari-vodex.load_experiment
+      display_name: load_experiment
