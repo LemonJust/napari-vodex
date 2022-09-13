@@ -1,4 +1,4 @@
-# napari lugin for vodex
+# napari plugin for vodex
 For more information about vodex and some notebooks/examples, see [github](https://github.com/LemonJust/vodex)
 
 ## Installation
