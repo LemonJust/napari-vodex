@@ -9,7 +9,9 @@ import sys
 from PyQt5.QtCore import Qt, QPropertyAnimation, QAbstractAnimation, QParallelAnimationGroup
 
 from PyQt5.QtWidgets import (
+
     QApplication,
+    QDialog,
     QAbstractItemView,
     QGridLayout,
     QComboBox,
@@ -25,7 +27,9 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QCheckBox,
     QTabWidget,
+    QTableWidget,
     QLabel,
+    QLayout,
     QListWidget,
     QListWidgetItem,
     QFormLayout,
@@ -36,8 +40,12 @@ from PyQt5.QtWidgets import (
     QWidget,
     QFileDialog,
     QMessageBox,
+    QTableWidgetItem,
+    QHeaderView,
+    QInputDialog
 
 )
+
 from pathlib import Path
 from functools import partial
 
@@ -509,79 +517,343 @@ class VolumeTab(QWidget):
             print(e)
 
 
-class LabelInfo(QWidget):
+class LabelsTab(QWidget):
+    """
+    Widget to get the information about individual label: it's name and description.
+    """
+
     def __init__(self):
+        super().__init__()
+        try:
+            self.main_lo = QVBoxLayout()
+            self.setLayout(self.main_lo)
+
+            # Table
+            self.ROW_HEIGHT = 30  # pixels
+            self.label_table = QTableWidget()
+            self.set_up_table()
+            self.main_lo.addWidget(self.label_table)
+
+            # Add/ Delete buttons
+            self.add_label = QPushButton("Add label")
+            self.delete_selected = QPushButton("Delete selected")
+            self.add_label.clicked.connect(self.add_row)
+            self.delete_selected.clicked.connect(self.delete_row)
+            button_lo = QHBoxLayout()
+            button_lo.addWidget(self.add_label)
+            button_lo.addWidget(self.delete_selected)
+            self.main_lo.addLayout(button_lo)
+
+            # Save and Edit button
+            self.save_labels = QPushButton("Save labels")
+            self.edit_labels = QPushButton("Edit labels")
+
+            self.main_lo.addWidget(self.save_labels)
+            self.main_lo.addWidget(self.edit_labels)
+            self.edit_labels.hide()
+
+            # Error window
+            self.msg = InputError()
+        except Exception as e:
+            print(e)
+
+    def set_up_table(self):
+        self.label_table.setColumnCount(2)
+        self.label_table.setColumnWidth(0, 150)
+        # self.label_table.verticalHeader().hide()
+        self.label_table.setHorizontalHeaderLabels(["Label name", "Description (Optional)"])
+        self.label_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.label_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        h_header = self.label_table.horizontalHeader()
+        h_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+
+    def add_row(self):
+        n_rows = self.label_table.rowCount()
+        self.label_table.insertRow(n_rows)
+        self.label_table.setRowHeight(n_rows, self.ROW_HEIGHT)
+
+        self.label_table.setItem(n_rows, 0, QTableWidgetItem("Enter Name"))
+        self.label_table.setItem(n_rows, 1, QTableWidgetItem(""))
+
+    def delete_row(self):
+        try:
+            # self.setParent(None)
+            # self.deleteLater()
+            selected_row = self.label_table.selectedItems()[0].row()
+            self.label_table.removeRow(selected_row)
+        except Exception as e:
+            print(e)
+
+    def get_names(self):
+        n_rows = self.label_table.rowCount()
+        state_names = []
+        for row in range(n_rows):
+            name = self.label_table.item(row, 0).text()
+            if name in state_names:
+                self.launch_popup("The label names must be unique!")
+                return None
+            else:
+                state_names.append(name)
+        return state_names
+
+    def get_descriptions(self):
+        n_rows = self.label_table.rowCount()
+        state_info = {}
+        for row in range(n_rows):
+            name = self.label_table.item(row, 0).text()
+            if name in state_info.keys():
+                self.launch_popup("The label names must be unique!")
+                return None
+            else:
+                state_info[name] = self.label_table.item(row, 1).text()
+        return state_info
+
+    def freeze(self):
+        self.label_table.setEnabled(False)
+        self.add_label.setEnabled(False)
+        self.delete_selected.setEnabled(False)
+        self.edit_labels.show()
+        self.save_labels.hide()
+
+    def unfreeze(self):
+        self.label_table.setEnabled(True)
+        self.add_label.setEnabled(True)
+        self.delete_selected.setEnabled(True)
+        self.edit_labels.hide()
+        self.save_labels.show()
+
+    def launch_popup(self, text):
+        self.msg.setText(text)
+        x = self.msg.exec_()  # this will show our messagebox
+
+
+class InputError(QMessageBox):
+    def __init__(self):
+        super().__init__()
+        # tutorial on message boxes: https://www.techwithtim.net/tutorials/pyqt5-tutorial/messageboxes/
+        self.setWindowTitle("Input Error")
+        self.setStandardButtons(QMessageBox.Ok)  # | QMessageBox.Cancel) if adding more buttons, separate with "|"
+        self.setDefaultButton(QMessageBox.Ok)  # setting default button to Cancel
+        self.buttonClicked.connect(self.popup_clicked)
+        # self.msg.setInformativeText("Some informative text")
+
+    def popup_clicked(self, i):
+        print(i.text())
+
+
+class ConditionTab(QWidget):
+    """"
+
+    """
+
+    def __init__(self, labels):
         super().__init__()
         main_lo = QHBoxLayout()
         self.setLayout(main_lo)
 
-        self.name = QLineEdit()
-        self.description = QTextEdit()
-        self.delete_button = QPushButton("Delete")
+        # Label adder
 
-        collapsable_box = CollapsibleBox(title="Description")
-        collapsable_box.setContentWidget(self.description)
-        self.name.setFixedWidth(100)
-        collapsable_box.setFixedHeight(27)
-        collapsable_box.setFixedWidth(300)
-        collapsable_box.setFixedHeight(27)
+        self.add_button = QPushButton("Add")
+        self.save_button = QPushButton("Save Annotation")
+        self.ROW_HEIGHT = 30
 
-        name_lo = QFormLayout()
-        name_lo.addRow("Name: ", self.name)
+        self.add_button.setFixedHeight(self.ROW_HEIGHT)
+        self.save_button.setFixedHeight(self.ROW_HEIGHT)
+        # I'll keep this connect here... since it's for every new object
+        # How do people do it through the controller ( do they? )
+        self.add_button.clicked.connect(lambda: self.add_row(labels))
+        self.save_button.clicked.connect(self.get_label_name_order)
 
-        main_lo.addLayout(name_lo)
-        main_lo.addWidget(collapsable_box, alignment=Qt.AlignTop)
-        main_lo.addWidget(self.delete_button, alignment=Qt.AlignTop)
+        input_lo = QVBoxLayout()
+        input_lo.addWidget(self.add_button)
+        input_lo.addWidget(self.save_button)
+        input_lo.addStretch(42)
+        main_lo.addLayout(input_lo)
+
+        # Table
+        self.label_table = QTableWidget()
+        self.set_up_table()
+        main_lo.addWidget(self.label_table)
+
+    def set_up_table(self):
+        self.label_table.setColumnCount(2)
+        self.label_table.setColumnWidth(0, 150)
+        self.label_table.setHorizontalHeaderLabels(["Label name", "Duration"])
+        self.label_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.label_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        h_header = self.label_table.horizontalHeader()
+        h_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+
+    def add_row(self, labels):
+        # create the elements to insert
+        label_choice = QComboBox()
+        duration = QSpinBox()
+        label_choice.addItems(labels)
+        duration.setMinimum(1)
+
+        n_rows = self.label_table.rowCount()
+        self.label_table.insertRow(n_rows)
+        self.label_table.setRowHeight(n_rows, self.ROW_HEIGHT)
+
+        self.label_table.setCellWidget(n_rows, 0, label_choice)
+        self.label_table.setCellWidget(n_rows, 1, duration)
+
+    def get_label_name_order(self):
+        try:
+            n_rows = self.label_table.rowCount()
+            label_name_order = [self.label_table.cellWidget(row, 0).currentText() for row in range(n_rows)]
+            print(label_name_order)
+        except Exception as e:
+            print(e)
+        return label_name_order
+
+    def get_duration(self):
+        n_rows = self.label_table.rowCount()
+        duration = [self.label_table.cellWidget(row, 1).value() for row in range(n_rows)]
+        return duration
 
 
-class LabelTab(QWidget):
+class TimingTab(QWidget):
+
+    def __init__(self, labels):
+        super().__init__()
+        try:
+            # Create a top-level layout
+            main_layout = QVBoxLayout()
+            self.setLayout(main_layout)
+
+            # Create and connect the combo box to switch between annotation type pages
+            self.annotation_type = QComboBox()
+            self.annotation_type.addItems(["Cycle", "Timeline", "From File"])
+            self.annotation_type.activated.connect(self.switchPage)
+
+            # Create the stacked layout
+            self.stackedLayout = QStackedLayout()
+            self.cycle = ConditionTab(labels=labels)
+            self.timeline = ConditionTab(labels=labels)
+            self.file_widget = self.create_file_widget()
+            self.stackedLayout.addWidget(self.cycle)
+            self.stackedLayout.addWidget(self.timeline)
+            self.stackedLayout.addWidget(self.file_widget)
+
+            # Add the combo box and the stacked layout to the top-level layout
+            main_layout.addWidget(self.annotation_type)
+            main_layout.addLayout(self.stackedLayout)
+        except Exception as e:
+            print(e)
+
+    def switchPage(self):
+        """
+        What to do when the annotation type is changed.
+        Change the stackedLayout based on the annotation_type currentIndex.
+        Switching the page keeps the information on the previous page!
+        """
+        self.stackedLayout.setCurrentIndex(self.annotation_type.currentIndex())
+
+    @staticmethod
+    def create_file_widget():
+        from_file = QWidget()
+        from_file_lo = QVBoxLayout()
+        from_file_lo.addWidget(QLabel("Loading from file is not supported yet."))
+        from_file.setLayout(from_file_lo)
+        return from_file
+
+    def get_timing(self):
+        annotation_type = self.annotation_type.currentText()
+
+
+class AnnotationPage(QWidget):
 
     def __init__(self):
         super().__init__()
-        main_lo = QVBoxLayout()
-        main_lo.setSpacing(0)
-        self.setLayout(main_lo)
 
-        self.group = QLineEdit()
-        group_lo = QFormLayout()
-        group_lo.addRow("Label group: ", self.group)
-        main_lo.addLayout(group_lo)
+        # Create a top-level layout
+        self.main_layout = QVBoxLayout()
+        self.setLayout(self.main_layout)
 
-        self.add_label_button = QPushButton("Add Label")
-        self.add_label_button.clicked.connect(self.add_label)
-        self.labels_lo = QVBoxLayout()
+        # create labels Tab
+        self.labels = LabelsTab()
+        self.timing = None
+        self.splitter = QSplitter(Qt.Vertical)
+        self.splitter.addWidget(self.labels)
+        self.main_layout.addWidget(self.splitter)
 
-        main_lo.addLayout(self.labels_lo)
-        main_lo.addWidget(self.add_label_button)
-        main_lo.addStretch(1)
+        # connecting it here, since there might be many annotation pages
+        self.labels.save_labels.clicked.connect(lambda: self.initialize_timeline(self.labels.get_names()))
+        self.labels.edit_labels.clicked.connect(self.remove_timeline)
 
-    def add_label(self):
-        self.labels_lo.addWidget(LabelInfo(), alignment=Qt.AlignTop)
+    def initialize_timeline(self, label_names):
+        if label_names is not None:
+            # freeze the labels tab
+            self.labels.freeze()
+            # create timeline
+            self.timing = TimingTab(label_names)
+            # add to splitter
+            self.splitter.addWidget(self.timing)
+
+    def remove_timeline(self):
+        # unfreeze the labels tab
+        self.labels.unfreeze()
+
+        # remove timeline
+        self.timing.hide()
+        self.timing.deleteLater()
+
+    def update_timeline(self, label_names):
+        """
+        Updates timeline tab with additional labels.
+        """
+        pass
 
 
 class AnnotationTab(QWidget):
 
     def __init__(self):
         super().__init__()
-
+        # Create a top-level layout
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
 
-        self.labels = LabelTab()
-        main_layout.addWidget(self.labels)
+        self.annotations = {}
+        switch_lo = QHBoxLayout()
+        self.add_annotation_pb = QPushButton("Add annotation")
+        self.add_annotation_pb.clicked.connect(self.create_annotation)
+        switch_lo.addWidget(QLabel("Annotations:"))
+        switch_lo.addWidget(self.add_annotation_pb)
+        main_layout.addLayout(switch_lo)
+        # Create and connect the combo box to switch between annotation type pages
+        self.pageCombo = QComboBox()
+        self.pageCombo.activated.connect(self.switchPage)
+        # Create the stacked layout
+        self.stackedLayout = QStackedLayout()
+        # Add the combo box and the stacked layout to the top-level layout
+        main_layout.addWidget(self.pageCombo)
+        main_layout.addLayout(self.stackedLayout)
 
-        # tutorial on message boxes: https://www.techwithtim.net/tutorials/pyqt5-tutorial/messageboxes/
-        msg = QMessageBox()
-        msg.setWindowTitle("Tutorial on PyQt5")
-        msg.setText("This is the main text!")
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)  # seperate buttons with "|"
-        msg.setDefaultButton(QMessageBox.Cancel)  # setting default button to Cancel
-        msg.buttonClicked.connect(self.popup_clicked)
-        msg.setInformativeText("informative text, ya!")
-        x = msg.exec_()  # this will show our messagebox
+    def switchPage(self):
+        """
+        What to do when the annotation type is changed.
+        Change the stackedLayout based on the pageCombo currentIndex.
+        Switching the page keeps the information on the previous page!
+        """
+        self.stackedLayout.setCurrentIndex(self.pageCombo.currentIndex())
 
-    def popup_clicked(self, i):
-        print(i.text())
+    def create_annotation(self):
+        annotation_name, ok = QInputDialog.getText(self, 'Enter annotation name', 'Try to choose meaningful names, '
+                                                                                  'for example:\n"Light" to describe '
+                                                                                  'whether the light was on or off;\n'
+                                                                                  '"Drug" to set the time when you '
+                                                                                  'added the drug;')
+        if ok:
+            try:
+                annotation = AnnotationPage()
+                self.annotations[annotation_name] = annotation
+                self.pageCombo.addItem(annotation_name)
+                # set the added item active
+                self.pageCombo.setCurrentText(annotation_name)
+                self.stackedLayout.addWidget(annotation)
+            except Exception as e:
+                print(e)
 
 
 class VodexView(QWidget):
@@ -594,6 +866,7 @@ class VodexView(QWidget):
 
         self.ft = FileTab()
         self.vt = VolumeTab()
+        # self.lt = LabelsTab()
         self.at = AnnotationTab()
 
         main_layout = QVBoxLayout()
@@ -604,19 +877,18 @@ class VodexView(QWidget):
         # Create a top-level layout
         # files_layout = QVBoxLayout()
         # More on QSplitter: https://www.tutorialspoint.com/pyqt/pyqt_qsplitter_widget.htm
-        splitter = QSplitter(Qt.Vertical)
+        splitter_data = QSplitter(Qt.Vertical)
+        splitter_data.addWidget(self.ft)
+        splitter_data.addWidget(self.vt)
+        tabs.addTab(splitter_data, "Image Data")
 
-        splitter.addWidget(self.ft)
-        splitter.addWidget(self.vt)
-
-        # files_layout.addWidget(splitter)
-
-        tabs.addTab(splitter, "Image Data")
+        # splitter_antn = QSplitter(Qt.Vertical)
+        # splitter_antn.addWidget(self.lt)
+        # splitter_antn.addWidget(self.at)
         tabs.addTab(self.at, "Time Annotation")
 
         main_layout.addWidget(tabs)
-
-        self.error_dialog = QErrorMessage()
+        # self.error_dialog = QErrorMessage()
 
 
 class VodexModel:
@@ -751,6 +1023,21 @@ class VodexController:
     def remove_annotations(self):
         pass
 
+    def initialize_at(self):
+        """
+        Executed when [???] button is pressed.
+        Initialises ??? and outputs the recording summary to inspect.
+        """
+        try:
+            if self._view.lt.get_label_info() is not None:
+                # freeze the labels
+                self._view.lt.freeze()
+                # create annotation tab
+                self._view.create_at()
+        except Exception as e:
+            print(e)
+            self._view.error_dialog.showMessage(e)
+
     def _connectDisplaySignalsAndSlots(self):
 
         # 1. connect FileTab
@@ -791,10 +1078,18 @@ class VodexController:
         self._view.vt.edit_vol_button.clicked.connect(self.remove_vm)
         self._view.vt.edit_vol_button.clicked.connect(self._view.vt.unfreeze_vm)
 
+        # 4. connect LabelsTab
+        # _______________________________________________________________________________________________
+        # [Save Labels] button
+        # self._view.lt.save_labels.clicked.connect(self.initialize_at)
+
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = VodexView()
-    window.show()
-    vc = VodexController(model=VodexModel(), view=window)
-    sys.exit(app.exec_())
+    try:
+        app = QApplication(sys.argv)
+        window = VodexView()
+        window.show()
+        vc = VodexController(model=VodexModel(), view=window)
+        sys.exit(app.exec_())
+    except Exception as e:
+        print(e)
