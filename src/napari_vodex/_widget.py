@@ -4,7 +4,7 @@ This module is an example of a barebones QWidget plugin for napari
 For Widget specification see: https://napari.org/stable/plugins/guides.html?#widgets
 
 """
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, List, Union
 from pathlib import Path
 
 from magicgui import magic_factory
@@ -630,7 +630,7 @@ class TimingTab(QWidget):
         h_header = self.table.horizontalHeader()
         h_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
 
-    def add_row(self, labels: list[str], label_name: str = None, duration: int = None):
+    def add_row(self, labels: List[str], label_name: str = None, duration: int = None):
         """
         Adds a row to the table and sets the widgets in the cells.
 
@@ -689,7 +689,7 @@ class TimingTab(QWidget):
             self.launch_popup(f"Label {label_name} is in use!")
         return in_use
 
-    def get_names_sequence(self) -> list[str]:
+    def get_names_sequence(self) -> List[str]:
         n_rows = self.table.rowCount()
         label_name_order = [self.table.cellWidget(row, 0).currentText() for row in range(n_rows)]
         return label_name_order
@@ -828,7 +828,7 @@ class AnnotationTab(QWidget):
 
 
 class AnnotationCheckboxes(QWidget):
-    def __init__(self, annotation_name: str, label_names: list[str]):
+    def __init__(self, annotation_name: str, label_names: List[str]):
         super().__init__()
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -840,7 +840,7 @@ class AnnotationCheckboxes(QWidget):
         self.checkboxes = {}
         self.update_labels(label_names)
 
-    def remove_unused(self, label_names: list[str]):
+    def remove_unused(self, label_names: List[str]):
         for name in self.checkboxes.keys():
             if name not in label_names:
                 child = self.layout.takeAt(self.checkboxes[name])
@@ -848,14 +848,14 @@ class AnnotationCheckboxes(QWidget):
                 if child.widget():
                     child.widget().deleteLater()
 
-    def add_new(self, label_names: list[str]):
+    def add_new(self, label_names: List[str]):
         for name in label_names:
             if name not in self.checkboxes.keys():
                 i_name = self.layout.count()
                 self.checkboxes[name] = i_name
                 self.layout.insertWidget(i_name, LabelCheckBox(self.group, name))
 
-    def update_labels(self, label_names: list[str]):
+    def update_labels(self, label_names: List[str]):
         self.remove_unused(label_names)
         self.add_new(label_names)
 
@@ -1110,8 +1110,8 @@ class VodexModel:
         """
         self.vm = None
 
-    def create_annotation(self, group: str, state_names: list[str], state_info: dict,
-                          labels_order: list[str], duration: list[int], an_type: str):
+    def create_annotation(self, group: str, state_names: List[str], state_info: dict,
+                          labels_order: List[str], duration: List[int], an_type: str):
         """
         Creates an annotation.
 
@@ -1226,7 +1226,7 @@ class VodexModel:
                 self.timelines[group] = timeline
                 self.annotations[group] = vx.Annotation.from_timeline(n_frames, labels, timeline)
 
-    def choose_volumes(self, conditions: Union[tuple, list[tuple]], logic: str):
+    def choose_volumes(self, conditions: Union[tuple, List[tuple]], logic: str):
         """
         Selects only full volumes that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
@@ -1244,7 +1244,7 @@ class VodexModel:
         volume_list = self.experiment.choose_volumes(conditions, logic)
         return volume_list
 
-    def load_volumes(self, volumes: list[int]):
+    def load_volumes(self, volumes: List[int]):
         """
         Loads volumes.
         """
@@ -1253,7 +1253,7 @@ class VodexModel:
         volumes_img = self.experiment.load_volumes(volumes)
         return volumes_img
 
-    def save_volumes(self, volumes_img: list[int]):
+    def save_volumes(self, volumes_img: List[int]):
         pass
 
 
