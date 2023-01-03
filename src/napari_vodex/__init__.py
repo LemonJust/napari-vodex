@@ -1,3 +1,3 @@
-__version__ = "0.0.1"
+__version__ = "0.0.7"
 
-from ._widget import new_experiment, load_experiment
+# from ._widget import new_experiment, load_experiment
