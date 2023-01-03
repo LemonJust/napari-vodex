@@ -1,3 +1,7 @@
-__version__ = "0.0.7"
+__version__ = "0.0.1"
+from ._widget import ExampleQWidget, example_magic_widget
 
-# from ._widget import new_experiment, load_experiment
+__all__ = (
+    "ExampleQWidget",
+    "example_magic_widget",
+)

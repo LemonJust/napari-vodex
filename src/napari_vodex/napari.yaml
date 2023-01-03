@@ -1,10 +1,21 @@
 name: napari-vodex
-display_name: napari FooBar
+display_name: Vodex Data Loader
 contributions:
   commands:
-    - id: napari-vodex.qt_widget
-      title: Vodex
-      python_name: napari_vodex.qt_widget:VodexWidget
+    - id: napari-vodex.make_qwidget
+      python_name: napari_vodex._widget:ExampleQWidget
+      title: Make example QWidget
+    - id: napari-vodex.make_magic_widget
+      python_name: napari_vodex._widget:example_magic_widget
+      title: Make example magic widget
+    - id: napari-vodex.make_func_widget
+      python_name: napari_vodex._widget:example_function_widget
+      title: Make example function widget
   widgets:
-    - command: napari-vodex.qt_widget
-      display_name: vodex-qt 0.0.7
+    - command: napari-vodex.make_qwidget
+      display_name: Example QWidget
+    - command: napari-vodex.make_magic_widget
+      display_name: Example Magic Widget
+    - command: napari-vodex.make_func_widget
+      autogenerate: true
+      display_name: Example Function Widget
