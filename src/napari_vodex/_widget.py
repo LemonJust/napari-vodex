@@ -1433,9 +1433,6 @@ class VodexController:
 
     def add_annotation(self, annotation_name):
 
-        # change the tab view
-        self._view.at.annotations[annotation_name].freeze()
-
         # get information to create annotation
         group = annotation_name
         state_names = self._view.at.annotations[annotation_name].labels.get_names()
@@ -1444,11 +1441,22 @@ class VodexController:
         duration = self._view.at.annotations[annotation_name].timing.get_duration_sequence()
         an_type = self._view.at.annotations[annotation_name].timing.annotation_type.currentText()
 
-        # create annotation and add it to the experiment
-        self._model.create_annotation(group, state_names, state_info, labels_order, duration, an_type)
+        if an_type == "Timeline" and sum(duration) != self._model.vm.n_frames :
+            self.launch_popup("The number of frames in a Timeline "
+                              "must exactly match the total number of frames in the recording.")
+        elif an_type == "Cycle" and sum(duration) > self._model.vm.n_frames :
+            self.launch_popup("The number of frames in a Cycle "
+                              "must be less or equal to the total number of frames in the recording.")
+        else:
+            # change the tab view
+            self._view.at.annotations[annotation_name].freeze()
 
-        # update the Load/Save Tab
-        self._view.dt.update_labels(self._get_label_names())
+            # create annotation and add it to the experiment
+            self._model.create_annotation(group, state_names, state_info, labels_order, duration, an_type)
+
+            # update the Load/Save Tab
+            self._view.dt.update_labels(self._get_label_names())
+
 
     def remove_annotation(self, annotation_name):
         # remove the tab from view
