@@ -909,14 +909,13 @@ class DataReaderWriterTab(QWidget):
 
         # 2. Annotation list
         self.annotations = {}
-        condition_lo = QHBoxLayout()
 
-        self.checkbox_lo = QVBoxLayout()
+        self.checkbox_lo = QHBoxLayout()
         self.checkboxes = []
         self.info_text = QLabel("Add time annotation to the experiment\nto see the options.")
         self.checkbox_lo.addWidget(self.info_text)
-        self.checkbox_lo.addStretch(42)
-        condition_lo.addLayout(self.checkbox_lo)
+
+        self.main_layout.addLayout(self.checkbox_lo)
 
         buttons_lo = QVBoxLayout()
         logic_label = QLabel("Use logic: ")
@@ -934,10 +933,7 @@ class DataReaderWriterTab(QWidget):
         buttons_lo.addWidget(self.volumes_info)
         buttons_lo.addWidget(self.load_conditions_pb)
 
-        buttons_lo.addStretch(42)
-        condition_lo.addLayout(buttons_lo)
-
-        self.main_layout.addLayout(condition_lo)
+        self.main_layout.addLayout(buttons_lo)
         self.main_layout.addWidget(horizontal_line())
 
         # self.main_layout.addStretch(42)
