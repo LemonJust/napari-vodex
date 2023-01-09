@@ -14,7 +14,6 @@ from qtpy.QtWidgets import \
 if TYPE_CHECKING:
     import napari
 
-
 # imports info: https://napari.org/stable/plugins/best_practices.html :
 # Don’t import from PyQt5 or PySide2 in your plugin: use qtpy. If you use from PyQt5 import QtCore (or similar) in
 # your plugin, but the end-user has chosen to use PySide2 for their Qt backend — or vice versa — then your plugin
@@ -979,14 +978,15 @@ class DataReaderWriterTab(QWidget):
         """
         requested_volumes = self.volumes.text()
         volumes = []
-        for vol in requested_volumes.split(","):
-            if ":" in vol:
-                start, end = vol.split(":")
-                assert start < end, f"The slice start {start} must be smaller than the end {end}"
-                volumes.extend(range(int(start.strip()), (int(end.strip()) + 1)))
-            else:
-                volumes.append(int(vol.strip()))
-        # TODO: check for repeats ?
+        if requested_volumes:
+            for vol in requested_volumes.split(","):
+                if ":" in vol:
+                    start, end = vol.split(":")
+                    assert start < end, f"The slice start {start} must be smaller than the end {end}"
+                    volumes.extend(range(int(start.strip()), (int(end.strip()) + 1)))
+                else:
+                    volumes.append(int(vol.strip()))
+            # TODO: check for repeats ?
         return volumes, requested_volumes
 
 
@@ -1029,7 +1029,7 @@ class VodexView(QWidget):
         splitter_1.addWidget(self.vt)
         splitter_1.addWidget(self.it)
         tabs.addTab(splitter_1, "Image Data")
-        self.it.hide()
+        # self.it.hide()
 
         # 2. Time Annotation Tab
         tabs.addTab(self.at, "Time Annotation")
@@ -1040,7 +1040,7 @@ class VodexView(QWidget):
         splitter_3.addWidget(self.st)
         tabs.addTab(splitter_3, "Load/Save Data")
 
-        self.main_layout.addWidget(tabs)
+        self.main_layout.addWidget(tabs, alignment=Qt.AlignTop)
 
         # disable until called for the first time
         self.nt.list_widget.setEnabled(False)
@@ -1344,7 +1344,6 @@ class VodexController:
         """
         # clear dependent managers
         self.remove_vm()
-        self.remove_annotations()
 
         try:
             # remove FileManager from the model
@@ -1405,13 +1404,18 @@ class VodexController:
 
     def edit_experiment(self):
 
+        # switch all annotations into "in edit" mode
+        for annotation in list(self._model.annotations.keys()):
+            self.edit_annotation(annotation)
+
+        # remove experiment
         self._model.remove_experiment()
 
         # unfreeze all the first tab
         self._view.nt.setEnabled(True)
         self._view.vt.setEnabled(True)
 
-        # swap the button to show
+        # swap the button to show on the first tab
         self._view.it.create_experiment.show()
         self._view.it.edit_experiment.hide()
         self._view.it.next_step.hide()
@@ -1432,31 +1436,32 @@ class VodexController:
         self._view.st.hide()
 
     def add_annotation(self, annotation_name):
-
-        # get information to create annotation
-        group = annotation_name
-        state_names = self._view.at.annotations[annotation_name].labels.get_names()
-        state_info = self._view.at.annotations[annotation_name].labels.get_descriptions()
-        labels_order = self._view.at.annotations[annotation_name].timing.get_names_sequence()
-        duration = self._view.at.annotations[annotation_name].timing.get_duration_sequence()
-        an_type = self._view.at.annotations[annotation_name].timing.annotation_type.currentText()
-
-        if an_type == "Timeline" and sum(duration) != self._model.vm.n_frames :
-            self.launch_popup("The number of frames in a Timeline "
-                              "must exactly match the total number of frames in the recording.")
-        elif an_type == "Cycle" and sum(duration) > self._model.vm.n_frames :
-            self.launch_popup("The number of frames in a Cycle "
-                              "must be less or equal to the total number of frames in the recording.")
+        if self._model.experiment is None:
+            self.launch_popup("Create Experiment First!")
         else:
-            # change the tab view
-            self._view.at.annotations[annotation_name].freeze()
+            # get information to create annotation
+            group = annotation_name
+            state_names = self._view.at.annotations[annotation_name].labels.get_names()
+            state_info = self._view.at.annotations[annotation_name].labels.get_descriptions()
+            labels_order = self._view.at.annotations[annotation_name].timing.get_names_sequence()
+            duration = self._view.at.annotations[annotation_name].timing.get_duration_sequence()
+            an_type = self._view.at.annotations[annotation_name].timing.annotation_type.currentText()
 
-            # create annotation and add it to the experiment
-            self._model.create_annotation(group, state_names, state_info, labels_order, duration, an_type)
+            if an_type == "Timeline" and sum(duration) != self._model.vm.n_frames:
+                self.launch_popup("The number of frames in a Timeline "
+                                  "must exactly match the total number of frames in the recording.")
+            elif an_type == "Cycle" and sum(duration) > self._model.vm.n_frames:
+                self.launch_popup("The number of frames in a Cycle "
+                                  "must be less or equal to the total number of frames in the recording.")
+            else:
+                # change the tab view
+                self._view.at.annotations[annotation_name].freeze()
 
-            # update the Load/Save Tab
-            self._view.dt.update_labels(self._get_label_names())
+                # create annotation and add it to the experiment
+                self._model.create_annotation(group, state_names, state_info, labels_order, duration, an_type)
 
+                # update the Load/Save Tab
+                self._view.dt.update_labels(self._get_label_names())
 
     def remove_annotation(self, annotation_name):
         # remove the tab from view
@@ -1485,22 +1490,26 @@ class VodexController:
         Executed when [Add annotation] button is pressed.
         Initialises the annotation tab.
         """
-        if self._view.at.pageCombo is None:
-            self._view.at.initialize_annotation_list()
-            self._view.at.pageCombo.activated.connect(self._view.at.switchPage)
+        if self._model.experiment is None:
+            self.launch_popup("Create Experiment first!")
+        else:
+            if self._view.at.pageCombo is None:
+                self._view.at.initialize_annotation_list()
+                self._view.at.pageCombo.activated.connect(self._view.at.switchPage)
 
     def initialize_ap(self, annotation_name=None):
         """
         Executed when [Add annotation] button is pressed.
         Initialises the annotation page and adds it to the annotation tab.
         """
-        if annotation_name is None:
-            # check if the name is unique
-            annotation_name = self._view.at.get_annotation_name()
-        # create ap
-        if annotation_name is not None:
-            self._view.at.create_ap(annotation_name)
-            self._connectAnnotationPageSignalsAndSlots(annotation_name)
+        if self._model.experiment is not None:
+            if annotation_name is None:
+                # check if the name is unique
+                annotation_name = self._view.at.get_annotation_name()
+            # create ap
+            if annotation_name is not None:
+                self._view.at.create_ap(annotation_name)
+                self._connectAnnotationPageSignalsAndSlots(annotation_name)
 
     def save_experiment(self):
         """
@@ -1521,10 +1530,13 @@ class VodexController:
         if self._model.experiment is not None:
             # get volume indeces
             volumes, requested_volumes = self._view.dt.get_volumes()
-            # load images
-            volumes_img = self._model.load_volumes(volumes)
-            # finally add loaded data to napari viewer
-            self._view.napari.add_image(volumes_img, name=requested_volumes)
+            if volumes:
+                # load images
+                volumes_img = self._model.load_volumes(volumes)
+                # finally add loaded data to napari viewer
+                self._view.napari.add_image(volumes_img, name=requested_volumes)
+            else:
+                self.launch_popup("Enter the IDs of volumes to load!")
         else:
             self.launch_popup("You must create the experiment to load the volumes.\n"
                               "See Image Data tab.")
@@ -1535,15 +1547,18 @@ class VodexController:
         """
         # rerun the choosing part in case anything changed
         # TODO : make sure nothing can change from choosing to loading
-        conditions, logic, volumes = self._find_volumes()
-        if volumes:
-            # construct the name
-            name = f"_{logic}_".join(f"{condition[0]}-{condition[1]}" for condition in conditions)
+        search_results = self._find_volumes()
+        # will be none if experiment is not defined or no annotations added
+        if search_results is not None:
+            conditions, logic, volumes = search_results
+            if volumes:
+                # construct the name
+                name = f"_{logic}_".join(f"{condition[0]}-{condition[1]}" for condition in conditions)
 
-            # load images
-            volumes_img = self._model.load_volumes(volumes)
-            # finally add loaded data to napari viewer
-            self._view.napari.add_image(volumes_img, name=name)
+                # load images
+                volumes_img = self._model.load_volumes(volumes)
+                # finally add loaded data to napari viewer
+                self._view.napari.add_image(volumes_img, name=name)
 
     def load_experiment(self):
         # browse for the db
@@ -1605,24 +1620,31 @@ class VodexController:
                                                                       duration=duration)
 
     def _find_volumes(self):
-        # collect conditions info
-        conditions = []
-        for annotation in self._view.dt.annotations.values():
-            an_conditions = annotation.get_checked_conditions()
-            if an_conditions:
-                conditions.extend(annotation.get_checked_conditions())
-        logic = self._view.dt.logic_box.currentText()
-
-        # get volumes
-        volumes_ids = self._model.experiment.choose_volumes(conditions, logic=logic)
-
-        # print volumes to text field
-        if volumes_ids:
-            self._view.dt.volumes_info.setText(','.join(str(volume) for volume in volumes_ids))
+        if self._model.experiment is None:
+            self.launch_popup("Create Experiment First!")
+            return
+        elif not self._model.annotations:
+            self.launch_popup("Add an Annotation to Experiment First!")
+            return
         else:
-            self._view.dt.volumes_info.setText("No full volumes satisfy the conditions.")
+            # collect conditions info
+            conditions = []
+            for annotation in self._view.dt.annotations.values():
+                an_conditions = annotation.get_checked_conditions()
+                if an_conditions:
+                    conditions.extend(annotation.get_checked_conditions())
+            logic = self._view.dt.logic_box.currentText()
 
-        return conditions, logic, volumes_ids
+            # get volumes
+            volumes_ids = self._model.experiment.choose_volumes(conditions, logic=logic)
+
+            # print volumes to text field
+            if volumes_ids:
+                self._view.dt.volumes_info.setText(','.join(str(volume) for volume in volumes_ids))
+            else:
+                self._view.dt.volumes_info.setText("No full volumes satisfy the conditions.")
+
+            return conditions, logic, volumes_ids
 
     def _connectAnnotationPageSignalsAndSlots(self, annotation_name):
         # 0. Connect tab controls
@@ -1745,8 +1767,8 @@ class VodexWidget(VodexView):
 
 if __name__ == "__main__":
     import sys
+
     app = QApplication(sys.argv)
     window = VodexWidget()
     window.show()
     sys.exit(app.exec_())
-
