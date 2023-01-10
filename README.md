@@ -33,6 +33,10 @@ To install latest development version :
 
     pip install git+https://github.com/LemonJust/napari-vodex.git
 
+## How-To Guide
+
+To get started with napari_vodex, please see details and examples in How-To Guide .
+
 
 ## Contributing
 
