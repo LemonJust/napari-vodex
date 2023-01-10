@@ -35,7 +35,7 @@ To install latest development version :
 
 ## How-To Guide
 
-To get started with napari_vodex, please see details and examples in How-To Guide .
+To get started with napari_vodex, please see details and examples in [How-To Guide](https://lemonjust.github.io/vodex/napari/how-to/) .
 
 
 ## Contributing
