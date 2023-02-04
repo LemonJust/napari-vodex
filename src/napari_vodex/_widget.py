@@ -1149,7 +1149,7 @@ class VodexModel:
         self.annotations.pop(group)
 
         # finally, remove from the experiment
-        self.experiment.db.delete_annotation(group)
+        self.experiment.delete_annotations([group])
         # indicate that there are some unsaved changes
         self.experiment_saved = False
 
@@ -1218,7 +1218,7 @@ class VodexModel:
                 self.cycles[group] = cycle
                 self.annotations[group] = vx.Annotation.from_cycle(n_frames, labels, cycle)
             else:
-                timeline = db_exporter.reconstruct_timeline(group, labels)
+                timeline = db_exporter.reconstruct_timeline(group)
                 self.timelines[group] = timeline
                 self.annotations[group] = vx.Annotation.from_timeline(n_frames, labels, timeline)
 
